@@ -1,0 +1,7 @@
+{
+  "version": "1.0.1",
+  "releaseNotes": "Bug fixes and performance improvements",
+  "downloadUrl": "http://localhost:3000/api/download/companion-app-1.0.1.jar",
+  "mandatory": false,
+  "minVersion": "1.0.0"
+}

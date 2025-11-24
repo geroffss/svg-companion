@@ -1,0 +1,14 @@
+.idea/
+.vscode/
+target/
+*.iml
+*.class
+*.jar
+*.war
+*.ear
+*.log
+*.tmp
+.DS_Store
+launcher/*.exe
+installer-output/
+out/
