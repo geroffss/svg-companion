@@ -96,6 +96,9 @@ public class CompanionApp extends Application {
                 openBrowserButton.setVisible(true);
                 loginButton.setDisable(true);
                 isLoggedIn = true;
+                
+                // Show SteelSeries control panel
+                showSteelSeriesPanel();
             } else {
                 statusLabel.setText("✗ Email sau parolă incorectă");
                 statusLabel.setStyle("-fx-text-fill: #ef4444;");
@@ -266,6 +269,172 @@ public class CompanionApp extends Application {
         if (trayIcon != null) {
             SystemTray.getSystemTray().remove(trayIcon);
         }
+    }
+    
+    /**
+     * Show SteelSeries mouse control panel
+     */
+    private void showSteelSeriesPanel() {
+        // Create new window for SteelSeries controls
+        Stage steelSeriesStage = new Stage();
+        steelSeriesStage.setTitle("SteelSeries Mouse Controls");
+        
+        // Initialize SteelSeries integration
+        SteelSeriesIntegration steelSeries = new SteelSeriesIntegration();
+        
+        Label titleLabel = new Label("🖱️ SteelSeries Mouse Settings");
+        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 18));
+        
+        // Check if SteelSeries is installed
+        if (!SteelSeriesIntegration.isSteelSeriesInstalled()) {
+            Label warningLabel = new Label("⚠️ SteelSeries Engine not detected");
+            warningLabel.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 14px;");
+            
+            Label infoLabel = new Label("Please install SteelSeries GG to use mouse controls");
+            infoLabel.setStyle("-fx-text-fill: #6b7280;");
+            
+            VBox layout = new VBox(15);
+            layout.setPadding(new Insets(30));
+            layout.setAlignment(Pos.CENTER);
+            layout.getChildren().addAll(titleLabel, warningLabel, infoLabel);
+            
+            Scene scene = new Scene(layout, 400, 200);
+            steelSeriesStage.setScene(scene);
+            steelSeriesStage.show();
+            return;
+        }
+        
+        // Initialize connection
+        boolean connected = steelSeries.initialize();
+        if (connected) {
+            steelSeries.registerGame("COMPANION_APP", "Companion App");
+        }
+        
+        Label statusLabel = new Label(connected ? "✓ Connected to SteelSeries Engine" : "⚠️ Connection failed");
+        statusLabel.setStyle(connected ? "-fx-text-fill: #10b981;" : "-fx-text-fill: #ef4444;");
+        
+        // DPI Control
+        Label dpiLabel = new Label("Mouse DPI:");
+        dpiLabel.setFont(Font.font("System", FontWeight.BOLD, 13));
+        
+        ComboBox<Integer> dpiComboBox = new ComboBox<>();
+        dpiComboBox.getItems().addAll(400, 800, 1200, 1600, 2000, 3200, 4000, 6400, 12000);
+        dpiComboBox.setValue(1600);
+        dpiComboBox.setPrefWidth(200);
+        
+        Button setDPIButton = new Button("Set DPI");
+        setDPIButton.setStyle("-fx-background-color: #8b5cf6; -fx-text-fill: white;");
+        setDPIButton.setOnAction(e -> {
+            int dpi = dpiComboBox.getValue();
+            if (steelSeries.setMouseDPI(dpi)) {
+                statusLabel.setText("✓ DPI set to " + dpi);
+                statusLabel.setStyle("-fx-text-fill: #10b981;");
+            } else {
+                statusLabel.setText("✗ Failed to set DPI");
+                statusLabel.setStyle("-fx-text-fill: #ef4444;");
+            }
+        });
+        
+        // Polling Rate Control
+        Label pollingLabel = new Label("Polling Rate (Hz):");
+        pollingLabel.setFont(Font.font("System", FontWeight.BOLD, 13));
+        
+        ComboBox<Integer> pollingComboBox = new ComboBox<>();
+        pollingComboBox.getItems().addAll(125, 250, 500, 1000);
+        pollingComboBox.setValue(1000);
+        pollingComboBox.setPrefWidth(200);
+        
+        Button setPollingButton = new Button("Set Polling Rate");
+        setPollingButton.setStyle("-fx-background-color: #8b5cf6; -fx-text-fill: white;");
+        setPollingButton.setOnAction(e -> {
+            int rate = pollingComboBox.getValue();
+            if (steelSeries.setPollingRate(rate)) {
+                statusLabel.setText("✓ Polling rate set to " + rate + "Hz");
+                statusLabel.setStyle("-fx-text-fill: #10b981;");
+            } else {
+                statusLabel.setText("✗ Failed to set polling rate");
+                statusLabel.setStyle("-fx-text-fill: #ef4444;");
+            }
+        });
+        
+        // RGB Illumination Control
+        Label rgbLabel = new Label("Mouse RGB:");
+        rgbLabel.setFont(Font.font("System", FontWeight.BOLD, 13));
+        
+        Button redButton = new Button("Red");
+        redButton.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white;");
+        redButton.setOnAction(e -> steelSeries.setIllumination(255, 0, 0));
+        
+        Button greenButton = new Button("Green");
+        greenButton.setStyle("-fx-background-color: #10b981; -fx-text-fill: white;");
+        greenButton.setOnAction(e -> steelSeries.setIllumination(0, 255, 0));
+        
+        Button blueButton = new Button("Blue");
+        blueButton.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white;");
+        blueButton.setOnAction(e -> steelSeries.setIllumination(0, 0, 255));
+        
+        Button purpleButton = new Button("Purple");
+        purpleButton.setStyle("-fx-background-color: #8b5cf6; -fx-text-fill: white;");
+        purpleButton.setOnAction(e -> steelSeries.setIllumination(139, 92, 246));
+        
+        javafx.scene.layout.HBox rgbButtons = new javafx.scene.layout.HBox(10);
+        rgbButtons.getChildren().addAll(redButton, greenButton, blueButton, purpleButton);
+        
+        // Profile selector
+        Label profileLabel = new Label("Quick Profiles:");
+        profileLabel.setFont(Font.font("System", FontWeight.BOLD, 13));
+        
+        Button gamingProfile = new Button("Gaming (High DPI)");
+        gamingProfile.setStyle("-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-pref-width: 150;");
+        gamingProfile.setOnAction(e -> {
+            steelSeries.setMouseDPI(3200);
+            steelSeries.setPollingRate(1000);
+            steelSeries.setIllumination(255, 0, 0);
+            statusLabel.setText("✓ Gaming profile activated");
+            statusLabel.setStyle("-fx-text-fill: #10b981;");
+        });
+        
+        Button workProfile = new Button("Work (Low DPI)");
+        workProfile.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-pref-width: 150;");
+        workProfile.setOnAction(e -> {
+            steelSeries.setMouseDPI(800);
+            steelSeries.setPollingRate(500);
+            steelSeries.setIllumination(0, 128, 255);
+            statusLabel.setText("✓ Work profile activated");
+            statusLabel.setStyle("-fx-text-fill: #10b981;");
+        });
+        
+        javafx.scene.layout.HBox profileButtons = new javafx.scene.layout.HBox(10);
+        profileButtons.getChildren().addAll(gamingProfile, workProfile);
+        
+        // Layout
+        VBox layout = new VBox(15);
+        layout.setPadding(new Insets(20));
+        layout.setAlignment(Pos.TOP_LEFT);
+        layout.setStyle("-fx-background-color: white;");
+        layout.getChildren().addAll(
+            titleLabel,
+            statusLabel,
+            new Separator(),
+            dpiLabel,
+            dpiComboBox,
+            setDPIButton,
+            new Separator(),
+            pollingLabel,
+            pollingComboBox,
+            setPollingButton,
+            new Separator(),
+            rgbLabel,
+            rgbButtons,
+            new Separator(),
+            profileLabel,
+            profileButtons
+        );
+        
+        Scene scene = new Scene(layout, 400, 550);
+        steelSeriesStage.setScene(scene);
+        steelSeriesStage.setAlwaysOnTop(true);
+        steelSeriesStage.show();
     }
 
     public static void main(String[] args) {
