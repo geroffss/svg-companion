@@ -63,7 +63,7 @@ echo.
 
 REM ===== Step 3: Compile Java Sources =====
 echo [3/5] Compiling Java sources...
-javac -d out\classes --module-path lib --add-modules javafx.controls src\main\java\com\companion\app\*.java
+javac -cp "lib\*" -d out\classes src\main\java\com\companion\app\*.java
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
