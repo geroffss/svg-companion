@@ -16,9 +16,13 @@ import java.util.Properties;
 
 public class UpdateManager {
     
-    private static final String UPDATE_CHECK_URL = "http://localhost:3000/api/version.json";
+    // GitHub Pages URL for version.json - Update this to your GitHub Pages URL
+    // Format: https://YOUR-USERNAME.github.io/svg-companion/version.json
+    private static final String UPDATE_CHECK_URL = "https://geroffss.github.io/svg-companion/version.json";
     private static final String CURRENT_VERSION = "1.0.0";
-    private static final String UPDATE_DOWNLOAD_URL = "http://localhost:3000/api/download/";
+    
+    // Note: UPDATE_DOWNLOAD_URL is now read from version.json
+    // GitHub Release format: https://github.com/geroffss/svg-companion/releases/download/v1.0.1/companion-app.jar
     
     public static void checkForUpdates(boolean silent) {
         new Thread(() -> {
@@ -99,6 +103,43 @@ public class UpdateManager {
         return false;
     }
     
+    private static String getDownloadUrl() {
+        try {
+            URL url = new URL(UPDATE_CHECK_URL);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder response = new StringBuilder();
+                String line;
+                
+                while ((line = in.readLine()) != null) {
+                    response.append(line);
+                }
+                in.close();
+                
+                // Parse JSON manually to get downloadUrl
+                String json = response.toString();
+                String urlKey = "\"downloadUrl\":\"";
+                int start = json.indexOf(urlKey);
+                if (start != -1) {
+                    start += urlKey.length();
+                    int end = json.indexOf("\"", start);
+                    if (end != -1) {
+                        return json.substring(start, end);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error getting download URL: " + e.getMessage());
+        }
+        return null;
+    }
+    
     private static void promptUpdate(String newVersion, boolean silent) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Update Available");
@@ -124,6 +165,12 @@ public class UpdateManager {
         
         new Thread(() -> {
             try {
+                // First, get the download URL from version.json
+                String downloadUrl = getDownloadUrl();
+                if (downloadUrl == null) {
+                    throw new Exception("Could not retrieve download URL");
+                }
+                
                 // Get the current JAR location
                 String jarPath = UpdateManager.class.getProtectionDomain()
                     .getCodeSource()
@@ -139,11 +186,11 @@ public class UpdateManager {
                 Path backupJar = Paths.get(jarPath).getParent().resolve("companion-app.jar.backup");
                 Path tempJar = Paths.get(jarPath).getParent().resolve("companion-app.jar.tmp");
                 
-                // Download new version
-                String downloadUrl = UPDATE_DOWNLOAD_URL + "companion-app-" + version + ".jar";
+                // Download new version from the URL in version.json
                 URL url = new URL(downloadUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
+                conn.setInstanceFollowRedirects(true); // Important for GitHub redirects
                 
                 try (InputStream in = conn.getInputStream();
                      FileOutputStream out = new FileOutputStream(tempJar.toFile())) {

@@ -1,7 +1,7 @@
 {
-  "version": "1.0.1",
-  "releaseNotes": "Bug fixes and performance improvements",
-  "downloadUrl": "http://localhost:3000/api/download/companion-app-1.0.1.jar",
+  "version": "1.0.0",
+  "releaseNotes": "Initial release\n• Login interface\n• Auto-start with Windows\n• Browser integration",
+  "downloadUrl": "https://github.com/geroffss/svg-companion/releases/download/v1.0.0/companion-app.jar",
   "mandatory": false,
   "minVersion": "1.0.0"
 }
