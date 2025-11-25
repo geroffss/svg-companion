@@ -33,18 +33,34 @@ public class SteelSeriesIntegration {
             }
             
             String propsContent = new String(Files.readAllBytes(propsPath));
+            System.out.println("SteelSeries config: " + propsContent);
             
-            // Simple JSON parsing without library
-            this.serverAddress = extractJsonValue(propsContent, "address");
-            String portStr = extractJsonValue(propsContent, "port");
-            this.serverPort = Integer.parseInt(portStr);
+            // Extract address (format: "address":"127.0.0.1:62776")
+            String addressWithPort = extractJsonValue(propsContent, "address");
+            
+            if (addressWithPort != null && addressWithPort.contains(":")) {
+                String[] parts = addressWithPort.split(":");
+                this.serverAddress = parts[0];
+                this.serverPort = Integer.parseInt(parts[1]);
+            } else {
+                System.err.println("Invalid address format: " + addressWithPort);
+                return false;
+            }
             
             System.out.println("SteelSeries Engine found at: " + serverAddress + ":" + serverPort);
+            
+            // Test connection
+            if (!testConnection()) {
+                System.err.println("Connection test failed");
+                return false;
+            }
+            
             connected = true;
             return true;
             
         } catch (Exception e) {
             System.err.println("Failed to initialize SteelSeries connection: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
@@ -87,15 +103,55 @@ public class SteelSeriesIntegration {
                 "{" +
                 "  \"game\": \"%s\"," +
                 "  \"game_display_name\": \"%s\"," +
-                "  \"developer\": \"Companion App\"" +
+                "  \"developer\": \"Companion App\"," +
+                "  \"deinitialize_timer_length_ms\": 300000" +
                 "}", 
                 gameName, displayName
             );
             
-            return sendPostRequest(endpoint, payload);
+            System.out.println("Registering game: " + payload);
+            boolean result = sendPostRequest(endpoint, payload);
+            System.out.println("Registration result: " + result);
+            
+            // Bind DPI event
+            if (result) {
+                bindEvent(gameName, "DPI_CHANGE", 1, 100);
+                bindEvent(gameName, "COLOR", 1, 100);
+            }
+            
+            return result;
             
         } catch (Exception e) {
             System.err.println("Failed to register game: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    /**
+     * Bind an event to display on device
+     */
+    private boolean bindEvent(String gameName, String eventName, int minValue, int maxValue) {
+        try {
+            String endpoint = "http://" + serverAddress + ":" + serverPort + "/bind_game_event";
+            
+            String payload = String.format(
+                "{" +
+                "  \"game\": \"%s\"," +
+                "  \"event\": \"%s\"," +
+                "  \"min_value\": %d," +
+                "  \"max_value\": %d," +
+                "  \"icon_id\": 1," +
+                "  \"handlers\": []" +
+                "}",
+                gameName, eventName, minValue, maxValue
+            );
+            
+            System.out.println("Binding event: " + payload);
+            return sendPostRequest(endpoint, payload);
+            
+        } catch (Exception e) {
+            System.err.println("Failed to bind event: " + e.getMessage());
             return false;
         }
     }
@@ -233,10 +289,15 @@ public class SteelSeriesIntegration {
      */
     private boolean sendPostRequest(String urlString, String payload) {
         try {
+            System.out.println("POST to: " + urlString);
+            System.out.println("Payload: " + payload);
+            
             java.net.URL url = new java.net.URL(urlString);
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
             conn.setDoOutput(true);
             
             try (OutputStream os = conn.getOutputStream()) {
@@ -245,12 +306,39 @@ public class SteelSeriesIntegration {
             }
             
             int responseCode = conn.getResponseCode();
+            System.out.println("Response code: " + responseCode);
+            
+            // Read response body for debugging
+            if (responseCode >= 200 && responseCode < 300) {
+                try (BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                    StringBuilder response = new StringBuilder();
+                    String responseLine;
+                    while ((responseLine = br.readLine()) != null) {
+                        response.append(responseLine.trim());
+                    }
+                    System.out.println("Response: " + response.toString());
+                }
+            } else {
+                // Read error stream
+                try (BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                    StringBuilder response = new StringBuilder();
+                    String responseLine;
+                    while ((responseLine = br.readLine()) != null) {
+                        response.append(responseLine.trim());
+                    }
+                    System.err.println("Error response: " + response.toString());
+                }
+            }
+            
             conn.disconnect();
             
             return responseCode >= 200 && responseCode < 300;
             
         } catch (Exception e) {
             System.err.println("HTTP request failed: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
