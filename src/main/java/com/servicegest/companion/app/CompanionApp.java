@@ -88,6 +88,18 @@ public class CompanionApp extends Application {
         checkNowButton.setStyle("-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 6px; -fx-cursor: hand;");
         checkNowButton.setOnAction(e -> performHealthCheck());
         
+        // Update button
+        Button updateButton = new Button("Check for Updates");
+        updateButton.setPrefWidth(150);
+        updateButton.setPrefHeight(40);
+        updateButton.setStyle("-fx-background-color: #06b6d4; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 6px; -fx-cursor: hand;");
+        updateButton.setOnAction(e -> checkForUpdates(updateButton));
+        
+        // Buttons HBox
+        HBox buttonsBox = new HBox(10);
+        buttonsBox.setAlignment(Pos.CENTER);
+        buttonsBox.getChildren().addAll(checkNowButton, updateButton);
+        
         // Auto-check interval selector
         Label intervalLabel = new Label("Check Interval:");
         intervalLabel.setStyle("-fx-font-size: 11px;");
@@ -127,7 +139,7 @@ public class CompanionApp extends Application {
             timestampLabel,
             responseInfoLabel,
             new Separator(),
-            checkNowButton,
+            buttonsBox,
             intervalBox,
             new Separator(),
             new Label("Details:") {{ setFont(Font.font("System", FontWeight.BOLD, 12)); }},
@@ -162,6 +174,9 @@ public class CompanionApp extends Application {
         
         // Start initial health check
         performHealthCheck();
+        
+        // Check for updates in background
+        checkForUpdatesBackground();
         
         // Start automatic health checks
         startHealthCheckTimer(HEALTH_CHECK_INTERVAL);
@@ -247,6 +262,149 @@ public class CompanionApp extends Application {
         
         // Note: Would need access to TextArea to update it
         // For now, status is updated via statusLabel
+    }
+    
+    /**
+     * Check for updates in background (non-blocking)
+     */
+    private void checkForUpdatesBackground() {
+        new Thread(() -> {
+            try {
+                Thread.sleep(2000); // Wait 2 seconds after app starts
+                
+                GitHubReleaseChecker.ReleaseInfo release = GitHubReleaseChecker.getLatestRelease();
+                if (release == null) return;
+                
+                String currentVersion = AutoUpdater.getCurrentVersion();
+                int comparison = GitHubReleaseChecker.compareVersions(release.version, currentVersion);
+                
+                if (comparison > 0) {
+                    Platform.runLater(() -> showUpdateAvailableDialog(release));
+                }
+            } catch (Exception e) {
+                // Silent fail - don't interrupt user experience
+            }
+        }).start();
+    }
+    
+    /**
+     * Check for updates (user-initiated)
+     */
+    private void checkForUpdates(Button updateButton) {
+        updateButton.setDisable(true);
+        updateButton.setText("Checking...");
+        
+        new Thread(() -> {
+            GitHubReleaseChecker.ReleaseInfo release = GitHubReleaseChecker.getLatestRelease();
+            
+            Platform.runLater(() -> {
+                updateButton.setDisable(false);
+                updateButton.setText("Check for Updates");
+                
+                if (release == null) {
+                    showAlert("Update Check Failed", "Could not connect to GitHub to check for updates.");
+                    return;
+                }
+                
+                String currentVersion = AutoUpdater.getCurrentVersion();
+                int comparison = GitHubReleaseChecker.compareVersions(release.version, currentVersion);
+                
+                if (comparison <= 0) {
+                    showAlert("No Updates Available", 
+                             "You are running the latest version (" + currentVersion + ")");
+                } else {
+                    showUpdateAvailableDialog(release);
+                }
+            });
+        }).start();
+    }
+    
+    /**
+     * Show update available dialog
+     */
+    private void showUpdateAvailableDialog(GitHubReleaseChecker.ReleaseInfo release) {
+        String currentVersion = AutoUpdater.getCurrentVersion();
+        
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Update Available");
+        alert.setHeaderText("New Version Available");
+        alert.setContentText("Current: " + currentVersion + "\nNew: " + release.version + 
+                           "\n\nRelease Notes:\n" + release.releaseNotes);
+        
+        ButtonType updateNow = new ButtonType("Update Now");
+        ButtonType updateLater = new ButtonType("Later");
+        alert.getButtonTypes().setAll(updateNow, updateLater);
+        
+        java.util.Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == updateNow) {
+            performUpdate(release);
+        }
+    }
+    
+    /**
+     * Download and install update
+     */
+    private void performUpdate(GitHubReleaseChecker.ReleaseInfo release) {
+        // Show progress dialog
+        Alert progressAlert = new Alert(Alert.AlertType.INFORMATION);
+        progressAlert.setTitle("Downloading Update");
+        progressAlert.setHeaderText("Downloading new version...");
+        progressAlert.setContentText("Please wait while the update is being downloaded.\n" +
+                                    "This may take a few minutes.");
+        progressAlert.getButtonTypes().clear();
+        
+        new Thread(() -> {
+            try {
+                // Download to temp location
+                String tempDir = System.getProperty("java.io.tmpdir");
+                String installerName = "Servicegest-Companion-Update.exe";
+                String installerPath = tempDir + "/" + installerName;
+                
+                boolean downloadSuccess = AutoUpdater.downloadFile(release.downloadUrl, installerPath);
+                
+                Platform.runLater(progressAlert::close);
+                
+                if (downloadSuccess) {
+                    // Create update script
+                    AutoUpdater.createUpdateScript(installerPath);
+                    
+                    // Show restart dialog
+                    Alert restartAlert = new Alert(Alert.AlertType.INFORMATION);
+                    restartAlert.setTitle("Update Ready");
+                    restartAlert.setHeaderText("Update Downloaded Successfully");
+                    restartAlert.setContentText("The application will now close and install the update.\n" +
+                                              "It will automatically restart when complete.");
+                    restartAlert.getButtonTypes().clear();
+                    ButtonType okButton = new ButtonType("OK");
+                    restartAlert.getButtonTypes().add(okButton);
+                    restartAlert.showAndWait();
+                    
+                    // Launch update and close app
+                    AutoUpdater.launchUpdateProcess("update-installer.bat");
+                    Platform.exit();
+                } else {
+                    Platform.runLater(() -> 
+                        showAlert("Download Failed", "Failed to download the update. Please try again later.")
+                    );
+                }
+            } catch (Exception e) {
+                Platform.runLater(progressAlert::close);
+                Platform.runLater(() -> 
+                    showAlert("Update Error", "Error during update: " + e.getMessage())
+                );
+            }
+        }).start();
+    }
+    
+    /**
+     * Show simple alert dialog
+     */
+    private void showAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
     
     /**
