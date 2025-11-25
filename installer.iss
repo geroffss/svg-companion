@@ -34,8 +34,8 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Name: "startupicon"; Description: "Run at Windows startup"; GroupDescription: "Startup Options:"
 
 [Files]
-; Native EXE launcher
-Source: "target\ServicegestCompanion.exe"; DestDir: "{app}"; Flags: ignoreversion
+; Batch launcher
+Source: "ServicegestCompanion.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Application JAR and libs
 Source: "target\companion-app-all.jar"; DestDir: "{app}\app"; Flags: ignoreversion
@@ -49,18 +49,18 @@ Source: "src\main\resources\icon.png"; DestDir: "{app}\app"; Flags: ignoreversio
 Source: "C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot\*"; DestDir: "{app}\runtime"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-; Start Menu shortcut - now using native EXE
-Name: "{group}\{#MyAppName}"; Filename: "{app}\ServicegestCompanion.exe"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"; Comment: "Servicegest API Health Monitor"
+; Start Menu shortcut
+Name: "{group}\{#MyAppName}"; Filename: "{app}\ServicegestCompanion.bat"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"; Comment: "Servicegest API Health Monitor"
 
 ; Desktop shortcut (optional)
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\ServicegestCompanion.exe"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"; Comment: "Servicegest API Health Monitor"; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\ServicegestCompanion.bat"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"; Comment: "Servicegest API Health Monitor"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\ServicegestCompanion.exe"""; Flags: uninsdeletevalue; Tasks: startupicon
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\ServicegestCompanion.bat"""; Flags: uninsdeletevalue; Tasks: startupicon
 
 [Run]
 ; Launch after install
-Filename: "{app}\ServicegestCompanion.exe"; WorkingDir: "{app}"; Description: "Launch ServicegestCompanion"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\ServicegestCompanion.bat"; WorkingDir: "{app}"; Description: "Launch ServicegestCompanion"; Flags: nowait postinstall skipifsilent shellexec
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"

@@ -1,14 +1,24 @@
-# Build Scripts
-
 @echo off
+REM Build Script for Companion App
+
 echo Building Companion App...
 echo.
 
+REM Try to find Maven
+set "MVN_CMD=mvn"
+if exist "C:\tools\apache-maven-3.9.6\bin\mvn.cmd" (
+    set "MVN_CMD=C:\tools\apache-maven-3.9.6\bin\mvn.cmd"
+) else if exist "%USERPROFILE%\apache-maven-3.9.6\bin\mvn.cmd" (
+    set "MVN_CMD=%USERPROFILE%\apache-maven-3.9.6\bin\mvn.cmd"
+)
+
 REM Step 1: Clean and build with Maven
 echo [1/3] Building JAR with Maven...
-call mvn clean package
+call "%MVN_CMD%" clean package
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Maven build failed
+    echo Make sure Maven is installed and in your PATH
+    echo Or install it at: C:\tools\apache-maven-3.9.6\
     pause
     exit /b 1
 )
