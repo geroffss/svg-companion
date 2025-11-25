@@ -1,90 +1,70 @@
 @echo off
-REM Servicegest Companion App - Build Script
-REM Builds the application and creates Windows installer
+REM Servicegest Companion App - Complete Build Script
+REM Builds Java app, creates native EXE, and creates Windows installer
 
 setlocal enabledelayedexpansion
 
+cd /d "%~dp0"
+
 echo.
 echo ============================================
-echo Servicegest Companion App - Build Script
+echo   SERVICEGEST COMPANION - FULL BUILD
 echo ============================================
 echo.
 
-REM Check if Maven is available
-where mvn >nul 2>nul
+REM Add Maven to PATH if needed
+set "PATH=%PATH%;C:\tools\apache-maven-3.9.6\bin"
+
+REM Step 1: Maven build
+echo [1/3] Building Java application with Maven...
+call mvn clean package -DskipTests -q
 if errorlevel 1 (
-    echo Error: Maven is not installed or not in PATH
-    echo Please download Maven from https://maven.apache.org/download.cgi
+    echo ERROR: Maven build failed!
     pause
     exit /b 1
 )
-
-REM Check if Java is available
-where java >nul 2>nul
-if errorlevel 1 (
-    echo Error: Java is not installed or not in PATH
-    echo Please download Java 17+ from https://adoptium.net/
-    pause
-    exit /b 1
-)
-
-echo Step 1: Cleaning previous build...
-call mvn clean
-if errorlevel 1 goto :build_failed
-
+echo       Done.
 echo.
-echo Step 2: Building JAR file with Maven...
-call mvn package -DskipTests
-if errorlevel 1 goto :build_failed
 
-echo.
-echo Step 3: Creating installer directory...
-if not exist "installer-output" mkdir "installer-output"
-
-REM Check if Inno Setup is installed
-echo.
-echo Step 4: Creating Windows Installer...
-set "INNO_SETUP=C:\Program Files (x86)\Inno Setup 6\iscc.exe"
-if not exist "!INNO_SETUP!" (
-    set "INNO_SETUP=C:\Program Files\Inno Setup 6\iscc.exe"
-)
-
-if not exist "!INNO_SETUP!" (
-    echo Warning: Inno Setup not found
-    echo JAR file has been built successfully in: target\companion-app-all.jar
-    echo.
-    echo To create an installer, download Inno Setup from: https://jrsoftware.org/isdl.php
-    echo Then run: "!INNO_SETUP!" setup.iss
-    goto :build_success
-) else (
-    echo Found Inno Setup at: !INNO_SETUP!
-    call "!INNO_SETUP!" setup.iss
-    if errorlevel 1 (
-        echo Warning: Installer creation failed, but JAR was built successfully
-        goto :build_success
+REM Step 2: Launch4j native EXE
+echo [2/3] Creating native EXE with Launch4j...
+if exist "launch4j\launch4jc.exe" (
+    launch4j\launch4jc.exe launch4j-config.xml
+    if not exist "target\ServicegestCompanion.exe" (
+        echo ERROR: Launch4j failed to create EXE!
+        pause
+        exit /b 1
     )
+    echo       Done.
+) else (
+    echo       Skipped - Launch4j not found
+)
+echo.
+
+REM Step 3: Inno Setup installer
+echo [3/3] Building installer with Inno Setup...
+set "INNO_SETUP=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+if exist "!INNO_SETUP!" (
+    "!INNO_SETUP!" installer.iss
+    if errorlevel 1 (
+        echo ERROR: Inno Setup failed!
+        pause
+        exit /b 1
+    )
+    echo       Done.
+) else (
+    echo       Skipped - Inno Setup not found
 )
 
-:build_success
 echo.
 echo ============================================
-echo Build completed successfully!
+echo   BUILD COMPLETE!
 echo ============================================
 echo.
 echo Output files:
-echo - JAR: target\companion-app-all.jar
-if exist "installer-output\*.exe" (
-    echo - Installer: installer-output\Servicegest-Companion-*.exe
-)
+echo   - JAR: target\companion-app-all.jar
+echo   - EXE: target\ServicegestCompanion.exe
+for %%f in (ServicegestCompanion-Setup-*.exe) do echo   - Installer: %%f
 echo.
 pause
 exit /b 0
-
-:build_failed
-echo.
-echo ============================================
-echo Build failed!
-echo ============================================
-echo.
-pause
-exit /b 1

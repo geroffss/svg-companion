@@ -20,6 +20,9 @@ import java.awt.Image;
 import java.awt.SystemTray;
 import java.awt.TrayIcon;
 import java.awt.PopupMenu;
+import java.awt.Toolkit;
+import javax.imageio.ImageIO;
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Timer;
@@ -46,6 +49,23 @@ public class CompanionApp extends Application {
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
         primaryStage.setTitle("Servicegest - API Health Monitor");
+        
+        // Set application icon (shows in titlebar, taskbar, and Task Manager)
+        try {
+            InputStream iconStream = getClass().getResourceAsStream("/icon.png");
+            if (iconStream != null) {
+                javafx.scene.image.Image appIcon = new javafx.scene.image.Image(iconStream);
+                primaryStage.getIcons().add(appIcon);
+                System.out.println("[DEBUG] Application icon loaded successfully");
+            } else {
+                System.out.println("[DEBUG] Icon not found in resources");
+            }
+        } catch (Exception e) {
+            System.out.println("[DEBUG] Failed to load icon: " + e.getMessage());
+        }
+        
+        // Prevent implicit exit when window is hidden
+        Platform.setImplicitExit(false);
         
         // Main title
         Label titleLabel = new Label("API Health Monitor");
@@ -158,6 +178,7 @@ public class CompanionApp extends Application {
         
         // Handle window close (minimize to tray instead of closing)
         primaryStage.setOnCloseRequest(event -> {
+            System.out.println("[DEBUG] Window close requested - minimizing to tray");
             event.consume();
             minimizeToTray();
         });
@@ -423,7 +444,10 @@ public class CompanionApp extends Application {
         
         // Show window menu item
         java.awt.MenuItem showItem = new java.awt.MenuItem("Show");
-        showItem.addActionListener(e -> Platform.runLater(this::showWindow));
+        showItem.addActionListener(e -> {
+            System.out.println("[DEBUG] Show menu item clicked");
+            showWindow();
+        });
         popup.add(showItem);
         
         popup.addSeparator();
@@ -442,14 +466,22 @@ public class CompanionApp extends Application {
         trayIcon = new TrayIcon(image, "Servicegest - API Monitor", popup);
         trayIcon.setImageAutoSize(true);
         
-        // Add double-click listener to show window
+        // Add click listener to show window
         trayIcon.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    Platform.runLater(CompanionApp.this::showWindow);
+                System.out.println("[DEBUG] Tray icon clicked - Button: " + e.getButton() + ", Click count: " + e.getClickCount());
+                if (e.getButton() == java.awt.event.MouseEvent.BUTTON1) {
+                    // Single left-click or double-click
+                    showWindow();
                 }
             }
+        });
+        
+        // Add action listener for primary action (double-click on some systems)
+        trayIcon.addActionListener(e -> {
+            System.out.println("[DEBUG] Tray icon action listener triggered");
+            showWindow();
         });
         
         try {
@@ -465,7 +497,11 @@ public class CompanionApp extends Application {
     private void minimizeToTray() {
         Platform.runLater(() -> {
             primaryStage.hide();
-            primaryStage.setIconified(true);
+            if (trayIcon != null) {
+                trayIcon.displayMessage("Servicegest Companion", 
+                    "Application minimized to tray. Double-click to restore.", 
+                    TrayIcon.MessageType.INFO);
+            }
         });
     }
     
@@ -473,31 +509,71 @@ public class CompanionApp extends Application {
      * Show window from system tray
      */
     private void showWindow() {
-        Platform.runLater(() -> {
-            primaryStage.show();
-            primaryStage.setIconified(false);
-            primaryStage.toFront();
-            primaryStage.requestFocus();
+        System.out.println("[DEBUG] showWindow() called from tray");
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            Platform.runLater(() -> {
+                System.out.println("[DEBUG] Platform.runLater executing - showing window");
+                try {
+                    if (primaryStage.isIconified()) {
+                        primaryStage.setIconified(false);
+                    }
+                    if (!primaryStage.isShowing()) {
+                        primaryStage.show();
+                    }
+                    primaryStage.toFront();
+                    primaryStage.setAlwaysOnTop(true);
+                    primaryStage.requestFocus();
+                    primaryStage.setAlwaysOnTop(false);
+                    System.out.println("[DEBUG] Window shown successfully");
+                } catch (Exception e) {
+                    System.err.println("[DEBUG] Error showing window: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            });
         });
     }
     
     /**
-     * Create a simple tray icon image (green circle)
+     * Create tray icon image from the application icon
      */
     private Image createTrayImage() {
-        // Create a 16x16 image with a green circle
+        try {
+            // Load the icon from resources
+            InputStream iconStream = getClass().getResourceAsStream("/icon.png");
+            if (iconStream != null) {
+                java.awt.image.BufferedImage originalImage = ImageIO.read(iconStream);
+                // Scale to appropriate tray size (16x16 or system tray size)
+                int trayIconSize = 16;
+                try {
+                    java.awt.Dimension traySize = SystemTray.getSystemTray().getTrayIconSize();
+                    trayIconSize = Math.min(traySize.width, traySize.height);
+                } catch (Exception e) {
+                    trayIconSize = 16;
+                }
+                java.awt.image.BufferedImage scaledImage = new java.awt.image.BufferedImage(
+                    trayIconSize, trayIconSize, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+                Graphics2D g2d = scaledImage.createGraphics();
+                g2d.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, 
+                                    java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2d.drawImage(originalImage, 0, 0, trayIconSize, trayIconSize, null);
+                g2d.dispose();
+                System.out.println("[DEBUG] Tray icon loaded from resources (" + trayIconSize + "x" + trayIconSize + ")");
+                return scaledImage;
+            }
+        } catch (Exception e) {
+            System.out.println("[DEBUG] Failed to load tray icon: " + e.getMessage());
+        }
+        
+        // Fallback: Create a simple colored icon
+        System.out.println("[DEBUG] Using fallback tray icon");
         int size = 16;
         java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(
-            size, size, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = image.createGraphics();
         
-        // White background
-        g2d.setColor(Color.WHITE);
-        g2d.fillRect(0, 0, size, size);
-        
-        // Green circle
-        g2d.setColor(new Color(16, 185, 129));
-        g2d.fillOval(2, 2, size - 4, size - 4);
+        // Purple background (matching the app theme)
+        g2d.setColor(new Color(139, 92, 246));
+        g2d.fillOval(0, 0, size, size);
         
         g2d.dispose();
         return image;

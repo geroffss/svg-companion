@@ -1,50 +1,66 @@
-; Inno Setup Script for Companion App
-; Requires Inno Setup 6.0 or later
+; Inno Setup Script for Servicegest Companion
+; Creates proper installer with working Start Menu shortcut
 
-#define MyAppName "Companion App"
-#define MyAppVersion "1.0.0"
-#define MyAppPublisher "Companion"
-#define MyAppExeName "CompanionApp.exe"
+#define MyAppName "ServicegestCompanion"
+#define MyAppVersion "1.0.9"
+#define MyAppPublisher "Servicegest"
+#define MyAppURL "https://servicegest.ro"
 
 [Setup]
-AppId={{COMPANION-APP-UNIQUE-ID}}
+AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\{#MyAppName}
+AppPublisherURL={#MyAppURL}
+DefaultDirName={localappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-OutputDir=target\installer
-OutputBaseFilename=CompanionApp-Setup-{#MyAppVersion}
-SetupIconFile=src\main\resources\icon.ico
+OutputDir=.
+OutputBaseFilename=ServicegestCompanion-Setup-{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
+PrivilegesRequired=lowest
+DisableProgramGroupPage=yes
 WizardStyle=modern
-PrivilegesRequired=admin
-ArchitecturesInstallIn64BitMode=x64
+; Application icon
+SetupIconFile=icon.ico
+UninstallDisplayIcon={app}\icon.ico
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "startupicon"; Description: "Run at Windows startup"; GroupDescription: "Startup Options:"; Flags: checkedonce
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"
+Name: "startupicon"; Description: "Run at Windows startup"; GroupDescription: "Startup Options:"
 
 [Files]
-Source: "target\companion-app-1.0.0.jar"; DestDir: "{app}"; Flags: ignoreversion
-Source: "launcher\CompanionApp.exe"; DestDir: "{app}"; Flags: ignoreversion
-; Note: If using jpackage, the entire runtime folder would be included here
+; Native EXE launcher
+Source: "target\ServicegestCompanion.exe"; DestDir: "{app}"; Flags: ignoreversion
+
+; Application JAR and libs
+Source: "target\companion-app-all.jar"; DestDir: "{app}\app"; Flags: ignoreversion
+Source: "target\lib\*"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+; Application icon
+Source: "icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "src\main\resources\icon.png"; DestDir: "{app}\app"; Flags: ignoreversion
+
+; Bundled Java Runtime
+Source: "C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot\*"; DestDir: "{app}\runtime"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+; Start Menu shortcut - now using native EXE
+Name: "{group}\{#MyAppName}"; Filename: "{app}\ServicegestCompanion.exe"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"; Comment: "Servicegest API Health Monitor"
+
+; Desktop shortcut (optional)
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\ServicegestCompanion.exe"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"; Comment: "Servicegest API Health Monitor"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: startupicon
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\ServicegestCompanion.exe"""; Flags: uninsdeletevalue; Tasks: startupicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; Launch after install
+Filename: "{app}\ServicegestCompanion.exe"; WorkingDir: "{app}"; Description: "Launch ServicegestCompanion"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
