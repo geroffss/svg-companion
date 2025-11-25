@@ -1,127 +1,90 @@
 @echo off
+REM Servicegest Companion App - Build Script
+REM Builds the application and creates Windows installer
+
 setlocal enabledelayedexpansion
 
-echo ============================================
-echo   CompanionApp - Complete Build Script
-echo ============================================
 echo.
-echo This script will:
-echo  1. Compile Java sources
-echo  2. Create JAR file
-echo  3. Build Windows installer
-echo.
-pause
-
-REM ===== Step 1: Check Prerequisites =====
-echo [1/5] Checking prerequisites...
+echo ============================================
+echo Servicegest Companion App - Build Script
+echo ============================================
 echo.
 
-REM Check Java
-java -version >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Java not found!
-    echo Please install Java 17+ from: https://adoptium.net/
+REM Check if Maven is available
+where mvn >nul 2>nul
+if errorlevel 1 (
+    echo Error: Maven is not installed or not in PATH
+    echo Please download Maven from https://maven.apache.org/download.cgi
     pause
     exit /b 1
 )
-echo   ✓ Java found
 
-REM Check Inno Setup
-set "ISCC="
-where iscc.exe >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
-    set "ISCC=iscc.exe"
-    goto :prerequisites_ok
+REM Check if Java is available
+where java >nul 2>nul
+if errorlevel 1 (
+    echo Error: Java is not installed or not in PATH
+    echo Please download Java 17+ from https://adoptium.net/
+    pause
+    exit /b 1
 )
 
-if exist "C:\Program Files (x86)\Inno Setup 6\iscc.exe" (
-    set "ISCC=C:\Program Files (x86)\Inno Setup 6\iscc.exe"
-    goto :prerequisites_ok
+echo Step 1: Cleaning previous build...
+call mvn clean
+if errorlevel 1 goto :build_failed
+
+echo.
+echo Step 2: Building JAR file with Maven...
+call mvn package -DskipTests
+if errorlevel 1 goto :build_failed
+
+echo.
+echo Step 3: Creating installer directory...
+if not exist "installer-output" mkdir "installer-output"
+
+REM Check if Inno Setup is installed
+echo.
+echo Step 4: Creating Windows Installer...
+set "INNO_SETUP=C:\Program Files (x86)\Inno Setup 6\iscc.exe"
+if not exist "!INNO_SETUP!" (
+    set "INNO_SETUP=C:\Program Files\Inno Setup 6\iscc.exe"
 )
 
-if exist "C:\Program Files\Inno Setup 6\iscc.exe" (
-    set "ISCC=C:\Program Files\Inno Setup 6\iscc.exe"
-    goto :prerequisites_ok
+if not exist "!INNO_SETUP!" (
+    echo Warning: Inno Setup not found
+    echo JAR file has been built successfully in: target\companion-app-all.jar
+    echo.
+    echo To create an installer, download Inno Setup from: https://jrsoftware.org/isdl.php
+    echo Then run: "!INNO_SETUP!" setup.iss
+    goto :build_success
+) else (
+    echo Found Inno Setup at: !INNO_SETUP!
+    call "!INNO_SETUP!" setup.iss
+    if errorlevel 1 (
+        echo Warning: Installer creation failed, but JAR was built successfully
+        goto :build_success
+    )
 )
 
-echo ERROR: Inno Setup not found!
-echo Please install Inno Setup 6 from: https://jrsoftware.org/isdl.php
+:build_success
+echo.
+echo ============================================
+echo Build completed successfully!
+echo ============================================
+echo.
+echo Output files:
+echo - JAR: target\companion-app-all.jar
+if exist "installer-output\*.exe" (
+    echo - Installer: installer-output\Servicegest-Companion-*.exe
+)
+echo.
+pause
+exit /b 0
+
+:build_failed
+echo.
+echo ============================================
+echo Build failed!
+echo ============================================
+echo.
 pause
 exit /b 1
-
-:prerequisites_ok
-echo   ✓ Inno Setup found
-echo.
-
-REM ===== Step 2: Create Directories =====
-echo [2/5] Creating output directories...
-if not exist "out" mkdir out
-if not exist "out\classes" mkdir out\classes
-if not exist "lib" mkdir lib
-echo   ✓ Directories ready
-echo.
-
-REM ===== Step 3: Compile Java Sources =====
-echo [3/5] Compiling Java sources...
-javac -cp "lib\*" -d out\classes src\main\java\com\companion\app\*.java
-
-if %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo ERROR: Compilation failed!
-    echo Please check your Java source files for errors.
-    pause
-    exit /b 1
-)
-echo   ✓ Compilation successful
-echo.
-
-REM ===== Step 4: Create JAR File =====
-echo [4/5] Creating JAR file...
-cd out\classes
-jar --create --file ..\companion-app.jar --main-class com.companion.app.CompanionApp com\companion\app\*.class
-cd ..\..
-
-if not exist "out\companion-app.jar" (
-    echo.
-    echo ERROR: JAR creation failed!
-    pause
-    exit /b 1
-)
-echo   ✓ JAR created: out\companion-app.jar
-echo.
-
-REM ===== Step 5: Copy Libraries =====
-echo Copying libraries...
-if exist "lib\*.jar" (
-    xcopy /Y /Q "lib\*.jar" "out\" >nul 2>&1
-)
-echo   ✓ Libraries copied
-echo.
-
-REM ===== Step 6: Create Installer =====
-echo [5/5] Building Windows installer...
-echo.
-"%ISCC%" setup.iss
-
-if %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo ERROR: Installer build failed!
-    echo Check the Inno Setup output above for details.
-    pause
-    exit /b 1
-)
-
-echo.
-echo ============================================
-echo   ✓ BUILD SUCCESSFUL!
-echo ============================================
-echo.
-echo Your installer is ready:
-echo   📦 installer-output\CompanionApp-Setup.exe
-echo.
-echo You can now:
-echo   • Test the installer locally
-echo   • Distribute to users
-echo   • Upload to GitLab releases
-echo.
-pause

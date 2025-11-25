@@ -1,11 +1,10 @@
-; Servicegest - Inno Setup Installer Script
-; Creates a Windows installer for the JavaFX application
+; Servicegest Companion App - Inno Setup Installer Script
+; Creates a Windows installer for the API Health Monitor
 
-#define MyAppName "Servicegest"
+#define MyAppName "Servicegest Companion App"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "Servicegest"
-#define MyAppExeName "CompanionApp.bat"
-#define MyAppDescription "Servicegest - Aplicație companion pentru atelier și șoferi"
+#define MyAppDescription "API Health Monitor - Monitors api.servicegest.ro/health"
 
 [Setup]
 AppId={{8F7D9A2E-5B3C-4E1F-9D8A-7C6B5A4E3D2F}
@@ -13,52 +12,55 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppVerName={#MyAppName} {#MyAppVersion}
-AppPublisherURL=http://localhost:3000
-AppSupportURL=http://localhost:3000
-AppUpdatesURL=http://localhost:3000
-DefaultDirName={autopf}\{#MyAppName}
+AppPublisherURL=https://servicegest.ro
+AppSupportURL=https://servicegest.ro
+AppUpdatesURL=https://servicegest.ro
+DefaultDirName={autopf}\Servicegest\Companion
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-LicenseFile=
 OutputDir=installer-output
-OutputBaseFilename=Servicegest-Setup-{#MyAppVersion}
+OutputBaseFilename=Servicegest-Companion-{#MyAppVersion}
 SetupIconFile=
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
+ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64
+DisableProgramGroupPage=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1; Check: not IsAdminInstallMode
+Name: "desktopicon"; Description: "Create Desktop Icon"; GroupDescription: "Additional Icons"; Flags: unchecked
+Name: "autostart"; Description: "Start with Windows"; GroupDescription: "Startup Options"
 
 [Files]
-Source: "out\companion-app.jar"; DestDir: "{app}\out"; Flags: ignoreversion
-Source: "lib\*.jar"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "CompanionApp.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "StartApp.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "target\companion-app.jar"; DestDir: "{app}"; Flags: ignoreversion
+Source: "target\lib\*"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "run-launcher.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\run-launcher.bat"; WorkingDir: "{app}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\run-launcher.bat"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\run-launcher.bat"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
-[UninstallRun]
-Filename: "reg"; Parameters: "delete ""HKCU\Software\Microsoft\Windows\CurrentVersion\Run"" /v ""Servicegest"" /f"; Flags: runhidden
+[Registry]
+Root: "HKCU"; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "ServicegestCompanion"; ValueData: "{app}\run-launcher.bat"; Tasks: autostart; Flags: uninsdeletevalue
 
 [Code]
-procedure CurStepChanged(CurStep: TSetupStep);
+procedure CurPageChanged(CurPageID: Integer);
 begin
-  if CurStep = ssPostInstall then
+  if CurPageID = wpSelectTasks then
   begin
-    // Auto-start will be configured when the app runs for the first time
+    MsgBox('Servicegest Companion App will monitor api.servicegest.ro/health endpoint.' + #13 + #13 +
+           'Java 17 or later must be installed and available in your PATH.' + #13 + #13 +
+           'Download Java from: https://adoptium.net/', mbInformation, MB_OK);
   end;
 end;
+
+
