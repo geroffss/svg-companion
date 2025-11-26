@@ -40,6 +40,7 @@ Name: "autostart"; Description: "Start with Windows"; GroupDescription: "Startup
 Source: "target\companion-app.jar"; DestDir: "{app}"; Flags: ignoreversion
 Source: "target\lib\*"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "run-launcher.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "version.json"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\run-launcher.bat"; WorkingDir: "{app}"

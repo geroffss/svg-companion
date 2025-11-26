@@ -2,7 +2,7 @@
 ; Creates proper installer with working Start Menu shortcut
 
 #define MyAppName "ServicegestCompanion"
-#define MyAppVersion "1.0.9"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Servicegest"
 #define MyAppURL "https://servicegest.ro"
 
@@ -36,6 +36,9 @@ Name: "startupicon"; Description: "Run at Windows startup"; GroupDescription: "S
 [Files]
 ; Batch launcher
 Source: "ServicegestCompanion.bat"; DestDir: "{app}"; Flags: ignoreversion
+
+; Version info for auto-updates
+Source: "version.json"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Application JAR and libs
 Source: "target\companion-app-all.jar"; DestDir: "{app}\app"; Flags: ignoreversion

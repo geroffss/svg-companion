@@ -123,35 +123,76 @@ public class AutoUpdater {
      */
     public static void createUpdateScript(String newInstallerPath) {
         try {
-            String scriptPath = "update-installer.bat";
+            // Use temp directory for the update script (ensure we have write access)
+            String tempDir = System.getProperty("java.io.tmpdir");
+            String scriptPath = tempDir + File.separator + "servicegest-update-installer.bat";
             
-            String batchContent = "@echo off\n" +
-                "REM Update installer script\n" +
-                "setlocal enabledelayedexpansion\n" +
-                "\n" +
-                "REM Wait for app to close\n" +
-                "timeout /t 2 /nobreak\n" +
-                "\n" +
-                "REM Run the new installer with auto-accept and auto-launch\n" +
-                "\"" + newInstallerPath + "\" /VERYSILENT /NORESTART\n" +
-                "\n" +
-                "REM Launch the updated app\n" +
-                "cd /d \"%ProgramFiles%\\Servicegest\\Companion\\\"\n" +
-                "if exist run-launcher.bat (\n" +
-                "    call run-launcher.bat\n" +
-                ") else (\n" +
-                "    echo Error: Updated app not found\n" +
-                ")\n" +
-                "\n" +
-                "REM Clean up\n" +
-                "del /f /q \"" + newInstallerPath + "\"\n" +
-                "del /f /q \"%~f0\"\n";
+            // Normalize path separators for Windows
+            String installerPathNormalized = newInstallerPath.replace("/", "\\");
+            
+            // Get the current app directory (where the JAR is running from)
+            String appDir = System.getProperty("user.dir");
+            String appDirNormalized = appDir.replace("/", "\\");
+            
+            String batchContent = "@echo off\r\n" +
+                "REM Update installer script\r\n" +
+                "setlocal enabledelayedexpansion\r\n" +
+                "\r\n" +
+                "echo Waiting for application to close...\r\n" +
+                "timeout /t 3 /nobreak > nul\r\n" +
+                "\r\n" +
+                "echo Running installer...\r\n" +
+                "\"" + installerPathNormalized + "\" /VERYSILENT /NORESTART\r\n" +
+                "\r\n" +
+                "echo Launching updated application...\r\n" +
+                "\r\n" +
+                "REM Try the original app directory first\r\n" +
+                "if exist \"" + appDirNormalized + "\\run-launcher.bat\" (\r\n" +
+                "    cd /d \"" + appDirNormalized + "\"\r\n" +
+                "    call run-launcher.bat\r\n" +
+                "    goto :cleanup\r\n" +
+                ")\r\n" +
+                "if exist \"" + appDirNormalized + "\\ServicegestCompanion.bat\" (\r\n" +
+                "    cd /d \"" + appDirNormalized + "\"\r\n" +
+                "    call ServicegestCompanion.bat\r\n" +
+                "    goto :cleanup\r\n" +
+                ")\r\n" +
+                "\r\n" +
+                "REM Try LocalAppData\\ServicegestCompanion path (old installer)\r\n" +
+                "if exist \"%LocalAppData%\\ServicegestCompanion\\ServicegestCompanion.bat\" (\r\n" +
+                "    cd /d \"%LocalAppData%\\ServicegestCompanion\"\r\n" +
+                "    call ServicegestCompanion.bat\r\n" +
+                "    goto :cleanup\r\n" +
+                ")\r\n" +
+                "\r\n" +
+                "REM Try LocalAppData\\Programs path (new installer non-admin)\r\n" +
+                "if exist \"%LocalAppData%\\Programs\\Servicegest\\Companion\\run-launcher.bat\" (\r\n" +
+                "    cd /d \"%LocalAppData%\\Programs\\Servicegest\\Companion\"\r\n" +
+                "    call run-launcher.bat\r\n" +
+                "    goto :cleanup\r\n" +
+                ")\r\n" +
+                "\r\n" +
+                "REM Try Program Files path (admin install)\r\n" +
+                "if exist \"%ProgramFiles%\\Servicegest\\Companion\\run-launcher.bat\" (\r\n" +
+                "    cd /d \"%ProgramFiles%\\Servicegest\\Companion\"\r\n" +
+                "    call run-launcher.bat\r\n" +
+                "    goto :cleanup\r\n" +
+                ")\r\n" +
+                "\r\n" +
+                "echo Error: Could not find updated application\r\n" +
+                "pause\r\n" +
+                "\r\n" +
+                ":cleanup\r\n" +
+                "REM Clean up installer\r\n" +
+                "del /f /q \"" + installerPathNormalized + "\" 2>nul\r\n";
             
             Files.write(Paths.get(scriptPath), batchContent.getBytes());
             System.out.println("[AutoUpdater] Update script created: " + scriptPath);
+            System.out.println("[AutoUpdater] App directory: " + appDirNormalized);
             
         } catch (Exception e) {
             System.out.println("[AutoUpdater] Error creating update script: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -160,11 +201,16 @@ public class AutoUpdater {
      */
     public static void launchUpdateProcess(String updateScriptPath) {
         try {
-            ProcessBuilder pb = new ProcessBuilder("cmd", "/c", "start \"\" \"" + updateScriptPath + "\"");
+            // Use the script from temp directory
+            String tempDir = System.getProperty("java.io.tmpdir");
+            String scriptPath = tempDir + File.separator + "servicegest-update-installer.bat";
+            
+            ProcessBuilder pb = new ProcessBuilder("cmd", "/c", "start", "\"Updating...\"", scriptPath);
             pb.start();
-            System.out.println("[AutoUpdater] Update process launched");
+            System.out.println("[AutoUpdater] Update process launched: " + scriptPath);
         } catch (Exception e) {
             System.out.println("[AutoUpdater] Error launching update: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

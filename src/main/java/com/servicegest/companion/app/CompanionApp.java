@@ -373,6 +373,7 @@ public class CompanionApp extends Application {
         progressAlert.setContentText("Please wait while the update is being downloaded.\n" +
                                     "This may take a few minutes.");
         progressAlert.getButtonTypes().clear();
+        progressAlert.show();
         
         new Thread(() -> {
             try {
@@ -383,36 +384,36 @@ public class CompanionApp extends Application {
                 
                 boolean downloadSuccess = AutoUpdater.downloadFile(release.downloadUrl, installerPath);
                 
-                Platform.runLater(progressAlert::close);
-                
-                if (downloadSuccess) {
-                    // Create update script
-                    AutoUpdater.createUpdateScript(installerPath);
+                Platform.runLater(() -> {
+                    progressAlert.close();
                     
-                    // Show restart dialog
-                    Alert restartAlert = new Alert(Alert.AlertType.INFORMATION);
-                    restartAlert.setTitle("Update Ready");
-                    restartAlert.setHeaderText("Update Downloaded Successfully");
-                    restartAlert.setContentText("The application will now close and install the update.\n" +
-                                              "It will automatically restart when complete.");
-                    restartAlert.getButtonTypes().clear();
-                    ButtonType okButton = new ButtonType("OK");
-                    restartAlert.getButtonTypes().add(okButton);
-                    restartAlert.showAndWait();
-                    
-                    // Launch update and close app
-                    AutoUpdater.launchUpdateProcess("update-installer.bat");
-                    Platform.exit();
-                } else {
-                    Platform.runLater(() -> 
-                        showAlert("Download Failed", "Failed to download the update. Please try again later.")
-                    );
-                }
+                    if (downloadSuccess) {
+                        // Create update script
+                        AutoUpdater.createUpdateScript(installerPath);
+                        
+                        // Show restart dialog
+                        Alert restartAlert = new Alert(Alert.AlertType.INFORMATION);
+                        restartAlert.setTitle("Update Ready");
+                        restartAlert.setHeaderText("Update Downloaded Successfully");
+                        restartAlert.setContentText("The application will now close and install the update.\n" +
+                                                  "It will automatically restart when complete.");
+                        restartAlert.getButtonTypes().clear();
+                        ButtonType okButton = new ButtonType("OK");
+                        restartAlert.getButtonTypes().add(okButton);
+                        restartAlert.showAndWait();
+                        
+                        // Launch update and close app
+                        AutoUpdater.launchUpdateProcess("update-installer.bat");
+                        Platform.exit();
+                    } else {
+                        showAlert("Download Failed", "Failed to download the update. Please try again later.");
+                    }
+                });
             } catch (Exception e) {
-                Platform.runLater(progressAlert::close);
-                Platform.runLater(() -> 
-                    showAlert("Update Error", "Error during update: " + e.getMessage())
-                );
+                Platform.runLater(() -> {
+                    progressAlert.close();
+                    showAlert("Update Error", "Error during update: " + e.getMessage());
+                });
             }
         }).start();
     }
