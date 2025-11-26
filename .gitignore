@@ -1,14 +1,62 @@
+# IDE
 .idea/
 .vscode/
-target/
 *.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+*.swp
+*.swo
+
+# Build output
+target/
+out/
+build/
+dist/
+bin/
+
+# Compiled files
 *.class
 *.jar
 *.war
 *.ear
+
+# Logs and temp files
 *.log
 *.tmp
+*.temp
+*.bak
+
+# OS files
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# Maven
+dependency-reduced-pom.xml
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# Launcher/Installer outputs
 launcher/*.exe
 installer-output/
-out/
+*.exe
+!launch4j/**/*.exe
+
+# Launch4j (keep the tool, ignore generated files)
+launch4j.zip
+
+# Package/Distribution
+*.msi
+*.dmg
+*.deb
+*.rpm
+
+# Environment
+.env
+.env.local
