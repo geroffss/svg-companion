@@ -45,11 +45,12 @@ if %ERRORLEVEL% NEQ 0 (
 echo       Done!
 echo.
 
-@REM REM Step 3: Run installer
-@REM echo [3/3] Launching installer...
-@REM echo.
-@REM start "" "ServicegestCompanion-Setup-1.0.9.exe"
-
 echo ========================================
 echo  Build complete!
+echo ========================================
+echo.
+echo  Installer: ServicegestCompanion-Setup-1.2.3.exe
+echo.
+echo  To install, run the installer manually or
+echo  upload to GitHub for auto-update.
 echo ========================================

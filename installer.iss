@@ -62,8 +62,9 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\ServicegestCompanion.bat"; 
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\ServicegestCompanion.bat"""; Flags: uninsdeletevalue; Tasks: startupicon
 
 [Run]
-; Launch after install
-Filename: "{app}\ServicegestCompanion.bat"; WorkingDir: "{app}"; Description: "Launch ServicegestCompanion"; Flags: nowait postinstall skipifsilent shellexec
+; Launch after install - runasoriginaluser ensures it runs as the user, not elevated
+; Removed skipifsilent so it launches even during silent/auto-update installs
+Filename: "{app}\ServicegestCompanion.bat"; WorkingDir: "{app}"; Description: "Launch ServicegestCompanion"; Flags: nowait postinstall shellexec runasoriginaluser
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"

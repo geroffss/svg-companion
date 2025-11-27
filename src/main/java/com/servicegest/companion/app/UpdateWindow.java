@@ -187,26 +187,13 @@ public class UpdateWindow {
                 
                 if (exitCode == 0) {
                     // Step 3: Finishing up
-                    setStatus("Finishing up...");
-                    setDetail("Update installed successfully!");
+                    setStatus("Update complete!");
+                    setDetail("The application will restart automatically...");
                     setProgress(1.0);
-                    Thread.sleep(1500);
+                    Thread.sleep(2000);
                     
-                    // Step 4: Launching updated app
-                    setStatus("Launching updated application...");
-                    setDetail("Starting Servicegest Companion");
-                    
-                    // Find and launch the updated app
-                    boolean launched = launchUpdatedApp();
-                    
-                    if (!launched) {
-                        setDetail("Please start the app from Start Menu");
-                        Thread.sleep(2000);
-                    }
-                    
-                    Thread.sleep(500);
-                    
-                    // Close this window and exit
+                    // The installer handles launching the app (postinstall in installer.iss)
+                    // Just close this window and exit
                     Platform.runLater(() -> {
                         close();
                         if (onComplete != null) onComplete.run();
@@ -260,7 +247,10 @@ public class UpdateWindow {
             
             // List of possible installation paths
             String[] possiblePaths = {
-                // New installer paths (autopf = auto program files based on privileges)
+                // Primary installation path
+                localAppData + "\\ServicegestCompanion\\ServicegestCompanion.bat",
+                
+                // Alternative paths
                 localAppData + "\\Programs\\Servicegest\\Companion\\run-launcher.bat",
                 programFiles + "\\Servicegest\\Companion\\run-launcher.bat",
                 
@@ -268,12 +258,9 @@ public class UpdateWindow {
                 appDir + "\\run-launcher.bat",
                 appDir + "\\ServicegestCompanion.bat",
                 
-                // Old installer paths
-                localAppData + "\\ServicegestCompanion\\ServicegestCompanion.bat",
-                localAppData + "\\ServicegestCompanion\\run-launcher.bat",
-                
-                // Start Menu shortcut (fallback)
-                userProfile + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Servicegest Companion App\\Servicegest Companion App.lnk"
+                // Start Menu shortcuts (fallback)
+                userProfile + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\ServicegestCompanion\\ServicegestCompanion.lnk",
+                userProfile + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\ServicegestCompanion\\Servicegest - Companion.lnk"
             };
             
             System.out.println("[UpdateWindow] Looking for updated application...");
@@ -285,16 +272,17 @@ public class UpdateWindow {
                 System.out.println("[UpdateWindow] Checking: " + path + " -> " + file.exists());
                 
                 if (file.exists()) {
-                    ProcessBuilder pb;
-                    if (path.endsWith(".lnk")) {
-                        // Launch shortcut
-                        pb = new ProcessBuilder("cmd", "/c", "start", "", path);
-                    } else {
-                        // Launch batch file
-                        pb = new ProcessBuilder("cmd", "/c", "start", "\"\"", path);
-                    }
-                    pb.directory(file.getParentFile());
+                    // Use ProcessBuilder with proper arguments for detached process
+                    ProcessBuilder pb = new ProcessBuilder(
+                        "cmd", "/c", "start", "\"\"", "/D", file.getParent(), "\"" + path + "\""
+                    );
+                    
+                    System.out.println("[UpdateWindow] Launching from: " + file.getParent());
                     pb.start();
+                    
+                    // Give it time to start
+                    Thread.sleep(2000);
+                    
                     System.out.println("[UpdateWindow] Successfully launched: " + path);
                     return true;
                 }
