@@ -25,6 +25,7 @@ import javax.imageio.ImageIO;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -41,6 +42,11 @@ public class CompanionApp extends Application {
     private Timer healthCheckTimer;
     private TrayIcon trayIcon;
     private SystemTray systemTray;
+    
+    // USB Device UI components
+    private ComboBox<USBDeviceDetector.USBDevice> usbDeviceComboBox;
+    private Label usbStatusLabel;
+    private TextArea usbDetailsArea;
     
     // Health check interval in milliseconds (10 seconds)
     private static final long HEALTH_CHECK_INTERVAL = 10000;
@@ -139,11 +145,56 @@ public class CompanionApp extends Application {
         
         // Details section
         TextArea detailsArea = new TextArea();
-        detailsArea.setPrefRowCount(10);
+        detailsArea.setPrefRowCount(6);
         detailsArea.setWrapText(true);
         detailsArea.setEditable(false);
         detailsArea.setStyle("-fx-font-family: 'Courier New'; -fx-font-size: 11px; -fx-text-fill: #1f2937; -fx-control-inner-background: #f9fafb; -fx-padding: 10;");
         detailsArea.setText("Application initialized.\nClick 'Check Now' or wait for automatic checks.\n\nChecking api.servicegest.ro/health endpoint...\nWill verify HTTP 200 response status code.");
+        
+        // ========== USB DEVICE SECTION ==========
+        Label usbSectionTitle = new Label("USB Device Selection");
+        usbSectionTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
+        usbSectionTitle.setStyle("-fx-text-fill: #1a1a1a;");
+        
+        // USB status label
+        usbStatusLabel = new Label("Scanning for USB devices...");
+        usbStatusLabel.setFont(Font.font("System", 12));
+        usbStatusLabel.setStyle("-fx-text-fill: #6b7280;");
+        
+        // USB device combo box
+        usbDeviceComboBox = new ComboBox<>();
+        usbDeviceComboBox.setPrefWidth(300);
+        usbDeviceComboBox.setPromptText("Select a USB device...");
+        usbDeviceComboBox.setStyle("-fx-font-size: 13px;");
+        
+        // Refresh USB button
+        Button refreshUsbButton = new Button("Refresh");
+        refreshUsbButton.setPrefHeight(30);
+        refreshUsbButton.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; -fx-background-radius: 4px; -fx-cursor: hand;");
+        refreshUsbButton.setOnAction(e -> refreshUSBDevices());
+        
+        // Open Device Manager button
+    
+        HBox usbSelectBox = new HBox(10);
+        usbSelectBox.setAlignment(Pos.CENTER);
+        usbSelectBox.getChildren().addAll(usbDeviceComboBox, refreshUsbButton);
+        
+        // USB device details area
+        usbDetailsArea = new TextArea();
+        usbDetailsArea.setPrefRowCount(6);
+        usbDetailsArea.setWrapText(true);
+        usbDetailsArea.setEditable(false);
+        usbDetailsArea.setStyle("-fx-font-family: 'Courier New'; -fx-font-size: 11px; -fx-text-fill: #1f2937; -fx-control-inner-background: #f0fdf4; -fx-padding: 10;");
+        usbDetailsArea.setText("No USB device selected.\nClick 'Refresh' to scan for connected USB drives.");
+        
+        // USB device selection listener
+        usbDeviceComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                displayUSBDeviceDetails(newVal);
+            }
+        });
+        
+        // ========== END USB DEVICE SECTION ==========
         
         // Layout
         VBox layout = new VBox(15);
@@ -162,14 +213,20 @@ public class CompanionApp extends Application {
             buttonsBox,
             intervalBox,
             new Separator(),
-            new Label("Details:") {{ setFont(Font.font("System", FontWeight.BOLD, 12)); }},
-            detailsArea
+            // new Label("API Details:") {{ setFont(Font.font("System", FontWeight.BOLD, 12)); }},
+            // detailsArea,
+            // new Separator(),
+            usbSectionTitle,
+            usbStatusLabel,
+            usbSelectBox,
+            new Label("Device Details:") {{ setFont(Font.font("System", FontWeight.BOLD, 12)); }},
+            usbDetailsArea
         );
         
         ScrollPane scrollPane = new ScrollPane(layout);
         scrollPane.setFitToWidth(true);
         
-        Scene scene = new Scene(scrollPane, 600, 700);
+        Scene scene = new Scene(scrollPane, 650, 850);
         primaryStage.setScene(scene);
         primaryStage.setResizable(true);
         
@@ -195,6 +252,9 @@ public class CompanionApp extends Application {
         
         // Start initial health check
         performHealthCheck();
+        
+        // Initial USB device scan
+        refreshUSBDevices();
         
         // Check for updates in background
         checkForUpdatesBackground();
@@ -286,6 +346,87 @@ public class CompanionApp extends Application {
     }
     
     /**
+     * Refresh the list of USB devices
+     */
+    private void refreshUSBDevices() {
+        usbStatusLabel.setText("Scanning for USB devices...");
+        usbStatusLabel.setStyle("-fx-text-fill: #f59e0b;");
+        
+        new Thread(() -> {
+            List<USBDeviceDetector.USBDevice> devices = USBDeviceDetector.detectUSBDevices();
+            
+            Platform.runLater(() -> {
+                usbDeviceComboBox.getItems().clear();
+                
+                if (devices.isEmpty()) {
+                    usbStatusLabel.setText("No USB devices found");
+                    usbStatusLabel.setStyle("-fx-text-fill: #ef4444;");
+                    usbDetailsArea.setText("No USB storage devices detected.\n\nPlease insert a USB drive and click 'Refresh'.");
+                } else {
+                    usbDeviceComboBox.getItems().addAll(devices);
+                    usbStatusLabel.setText("Found " + devices.size() + " USB device(s)");
+                    usbStatusLabel.setStyle("-fx-text-fill: #10b981;");
+                    
+                    // Auto-select first device
+                    if (!devices.isEmpty()) {
+                        usbDeviceComboBox.getSelectionModel().selectFirst();
+                    }
+                }
+            });
+        }).start();
+    }
+    
+    /**
+     * Display details of the selected USB device
+     */
+    private void displayUSBDeviceDetails(USBDeviceDetector.USBDevice device) {
+        StringBuilder details = new StringBuilder();
+        details.append("═══════════════════════════════════════\n");
+        details.append("  USB DEVICE INFORMATION\n");
+        details.append("═══════════════════════════════════════\n\n");
+        
+        details.append("🔌 Device Name:     ").append(device.getDisplayName()).append("\n");
+        if (device.description != null && !device.description.isEmpty()) {
+            details.append("📋 Description:     ").append(device.description).append("\n");
+        }
+        if (device.manufacturer != null && !device.manufacturer.isEmpty()) {
+            details.append("🏭 Manufacturer:    ").append(device.manufacturer).append("\n");
+        }
+        if (device.deviceClass != null && !device.deviceClass.isEmpty()) {
+            details.append("📁 Device Class:    ").append(device.deviceClass).append("\n");
+        }
+        details.append("✅ Status:          ").append(device.status != null ? device.status : "Unknown").append("\n");
+        
+        details.append("\n───────────────────────────────────────\n");
+        details.append("  DRIVER INFORMATION\n");
+        details.append("───────────────────────────────────────\n\n");
+        
+        if (device.driverProvider != null && !device.driverProvider.isEmpty()) {
+            details.append("👤 Driver Provider: ").append(device.driverProvider).append("\n");
+        }
+        if (device.driverVersion != null && !device.driverVersion.isEmpty()) {
+            details.append("📦 Driver Version:  ").append(device.driverVersion).append("\n");
+        }
+        
+        details.append("\n───────────────────────────────────────\n");
+        details.append("  DEVICE ID\n");
+        details.append("───────────────────────────────────────\n\n");
+        
+        if (device.deviceId != null && !device.deviceId.isEmpty()) {
+            // Split long device ID for readability
+            String id = device.deviceId;
+            if (id.length() > 40) {
+                details.append(id.substring(0, 40)).append("\n");
+                details.append(id.substring(40)).append("\n");
+            } else {
+                details.append(id).append("\n");
+            }
+        }
+        
+        usbDetailsArea.setText(details.toString());
+    }
+    
+    /**
      * Check for updates in background (non-blocking)
      */
     private void checkForUpdatesBackground() {
@@ -352,6 +493,9 @@ public class CompanionApp extends Application {
         alert.setContentText("Current: " + currentVersion + "\nNew: " + release.version + 
                            "\n\nRelease Notes:\n" + release.releaseNotes);
         
+        // Set dialog icon
+        setAlertIcon(alert);
+        
         ButtonType updateNow = new ButtonType("Update Now");
         ButtonType updateLater = new ButtonType("Later");
         alert.getButtonTypes().setAll(updateNow, updateLater);
@@ -366,14 +510,11 @@ public class CompanionApp extends Application {
      * Download and install update
      */
     private void performUpdate(GitHubReleaseChecker.ReleaseInfo release) {
-        // Show progress dialog
-        Alert progressAlert = new Alert(Alert.AlertType.INFORMATION);
-        progressAlert.setTitle("Downloading Update");
-        progressAlert.setHeaderText("Downloading new version...");
-        progressAlert.setContentText("Please wait while the update is being downloaded.\n" +
-                                    "This may take a few minutes.");
-        progressAlert.getButtonTypes().clear();
-        progressAlert.show();
+        // Create the update progress window
+        UpdateWindow updateWindow = new UpdateWindow();
+        updateWindow.show();
+        updateWindow.setStatus("Downloading update...");
+        updateWindow.setDetail("Downloading v" + release.version + " from GitHub");
         
         new Thread(() -> {
             try {
@@ -382,40 +523,93 @@ public class CompanionApp extends Application {
                 String installerName = "Servicegest-Companion-Update.exe";
                 String installerPath = tempDir + "/" + installerName;
                 
-                boolean downloadSuccess = AutoUpdater.downloadFile(release.downloadUrl, installerPath);
+                // Download with progress updates
+                boolean downloadSuccess = downloadWithProgress(release.downloadUrl, installerPath, updateWindow);
                 
-                Platform.runLater(() -> {
-                    progressAlert.close();
+                if (downloadSuccess) {
+                    // Hide main window
+                    Platform.runLater(() -> primaryStage.hide());
                     
-                    if (downloadSuccess) {
-                        // Create update script
-                        AutoUpdater.createUpdateScript(installerPath);
-                        
-                        // Show restart dialog
-                        Alert restartAlert = new Alert(Alert.AlertType.INFORMATION);
-                        restartAlert.setTitle("Update Ready");
-                        restartAlert.setHeaderText("Update Downloaded Successfully");
-                        restartAlert.setContentText("The application will now close and install the update.\n" +
-                                                  "It will automatically restart when complete.");
-                        restartAlert.getButtonTypes().clear();
-                        ButtonType okButton = new ButtonType("OK");
-                        restartAlert.getButtonTypes().add(okButton);
-                        restartAlert.showAndWait();
-                        
-                        // Launch update and close app
-                        AutoUpdater.launchUpdateProcess("update-installer.bat");
+                    // Run installation with visual feedback
+                    updateWindow.runUpdateInstallation(installerPath, () -> {
+                        // Exit the application after update
                         Platform.exit();
-                    } else {
+                        System.exit(0);
+                    });
+                } else {
+                    Platform.runLater(() -> {
+                        updateWindow.close();
                         showAlert("Download Failed", "Failed to download the update. Please try again later.");
-                    }
-                });
+                    });
+                }
             } catch (Exception e) {
                 Platform.runLater(() -> {
-                    progressAlert.close();
+                    updateWindow.close();
                     showAlert("Update Error", "Error during update: " + e.getMessage());
                 });
             }
         }).start();
+    }
+    
+    /**
+     * Download file with progress reporting to UpdateWindow
+     */
+    private boolean downloadWithProgress(String urlString, String destinationPath, UpdateWindow updateWindow) {
+        try {
+            java.net.URL url = new java.net.URL(urlString);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(30000);
+            conn.setReadTimeout(30000);
+            conn.setInstanceFollowRedirects(true);
+            
+            // Handle redirects
+            int responseCode = conn.getResponseCode();
+            if (responseCode == java.net.HttpURLConnection.HTTP_MOVED_PERM || 
+                responseCode == java.net.HttpURLConnection.HTTP_MOVED_TEMP) {
+                String redirectUrl = conn.getHeaderField("Location");
+                conn = (java.net.HttpURLConnection) new java.net.URL(redirectUrl).openConnection();
+            }
+            
+            if (conn.getResponseCode() != 200) {
+                return false;
+            }
+            
+            long fileSize = conn.getContentLengthLong();
+            
+            try (java.io.InputStream input = conn.getInputStream();
+                 java.io.FileOutputStream output = new java.io.FileOutputStream(destinationPath)) {
+                
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                long totalRead = 0;
+                
+                while ((bytesRead = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, bytesRead);
+                    totalRead += bytesRead;
+                    
+                    if (fileSize > 0) {
+                        double progress = (double) totalRead / fileSize;
+                        long totalMB = totalRead / (1024 * 1024);
+                        long sizeMB = fileSize / (1024 * 1024);
+                        
+                        final double p = progress;
+                        final String detail = String.format("Downloaded %d MB of %d MB", totalMB, sizeMB);
+                        
+                        Platform.runLater(() -> {
+                            updateWindow.setProgress(p);
+                            updateWindow.setDetail(detail);
+                        });
+                    }
+                }
+            }
+            
+            return true;
+            
+        } catch (Exception e) {
+            System.out.println("[Download] Error: " + e.getMessage());
+            return false;
+        }
     }
     
     /**
@@ -426,7 +620,23 @@ public class CompanionApp extends Application {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
+        setAlertIcon(alert);
         alert.showAndWait();
+    }
+    
+    /**
+     * Set application icon on alert dialogs
+     */
+    private void setAlertIcon(Alert alert) {
+        try {
+            Stage alertStage = (Stage) alert.getDialogPane().getScene().getWindow();
+            InputStream iconStream = getClass().getResourceAsStream("/icon.png");
+            if (iconStream != null) {
+                alertStage.getIcons().add(new javafx.scene.image.Image(iconStream));
+            }
+        } catch (Exception e) {
+            // Icon not critical, ignore errors
+        }
     }
     
     /**
@@ -440,56 +650,171 @@ public class CompanionApp extends Application {
         
         systemTray = SystemTray.getSystemTray();
         
-        // Create a popup menu for the tray icon
+        // Create a popup menu for the tray icon - Windows 11 style
         PopupMenu popup = new PopupMenu();
         
-        // Show window menu item
-        java.awt.MenuItem showItem = new java.awt.MenuItem("Show");
-        showItem.addActionListener(e -> {
-            System.out.println("[DEBUG] Show menu item clicked");
-            showWindow();
-        });
-        popup.add(showItem);
+        // Set font for menu items (Windows 11 uses Segoe UI Variable)
+        java.awt.Font menuFont = new java.awt.Font("Segoe UI", java.awt.Font.PLAIN, 12);
+        java.awt.Font menuFontBold = new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 12);
+        
+        // === Status Section ===
+        java.awt.MenuItem statusItem = new java.awt.MenuItem("Status: Checking...");
+        statusItem.setFont(menuFont);
+        statusItem.setEnabled(false);
+        popup.add(statusItem);
         
         popup.addSeparator();
         
-        // Exit menu item
+        // === Open App ===
+        java.awt.MenuItem openItem = new java.awt.MenuItem("Open Servicegest Companion");
+        openItem.setFont(menuFontBold);
+        openItem.addActionListener(e -> showWindow());
+        popup.add(openItem);
+        
+        popup.addSeparator();
+        
+        // === Actions Section ===
+        java.awt.MenuItem checkHealthItem = new java.awt.MenuItem("Check API Health Now");
+        checkHealthItem.setFont(menuFont);
+        checkHealthItem.addActionListener(e -> {
+            performHealthCheck();
+            if (trayIcon != null) {
+                trayIcon.displayMessage("Health Check", "Checking API health...", TrayIcon.MessageType.INFO);
+            }
+        });
+        popup.add(checkHealthItem);
+        
+        java.awt.MenuItem checkUpdatesItem = new java.awt.MenuItem("Check for Updates");
+        checkUpdatesItem.setFont(menuFont);
+        checkUpdatesItem.addActionListener(e -> checkForUpdatesFromTray());
+        popup.add(checkUpdatesItem);
+        
+        popup.addSeparator();
+        
+        // === Settings Submenu ===
+        java.awt.Menu intervalMenu = new java.awt.Menu("Check Interval");
+        intervalMenu.setFont(menuFont);
+        
+        java.awt.CheckboxMenuItem interval5 = new java.awt.CheckboxMenuItem("5 seconds");
+        java.awt.CheckboxMenuItem interval10 = new java.awt.CheckboxMenuItem("10 seconds", true);
+        java.awt.CheckboxMenuItem interval15 = new java.awt.CheckboxMenuItem("15 seconds");
+        java.awt.CheckboxMenuItem interval30 = new java.awt.CheckboxMenuItem("30 seconds");
+        java.awt.CheckboxMenuItem interval60 = new java.awt.CheckboxMenuItem("60 seconds");
+        
+        java.awt.CheckboxMenuItem[] intervals = {interval5, interval10, interval15, interval30, interval60};
+        int[] intervalValues = {5, 10, 15, 30, 60};
+        
+        for (int i = 0; i < intervals.length; i++) {
+            final int index = i;
+            intervals[i].setFont(menuFont);
+            intervals[i].addItemListener(ev -> {
+                if (intervals[index].getState()) {
+                    for (int j = 0; j < intervals.length; j++) {
+                        if (j != index) intervals[j].setState(false);
+                    }
+                    stopHealthCheckTimer();
+                    startHealthCheckTimer(intervalValues[index] * 1000L);
+                }
+            });
+            intervalMenu.add(intervals[i]);
+        }
+        popup.add(intervalMenu);
+        
+        popup.addSeparator();
+        
+        // === About ===
+        java.awt.MenuItem aboutItem = new java.awt.MenuItem("About");
+        aboutItem.setFont(menuFont);
+        aboutItem.addActionListener(e -> {
+            Platform.runLater(() -> {
+                showAlert("About Servicegest Companion", 
+                    "Servicegest Companion v" + AutoUpdater.getCurrentVersion() + "\n\n" +
+                    "API Health Monitor Application\n" +
+                    "Monitors api.servicegest.ro/health");
+            });
+        });
+        popup.add(aboutItem);
+        
+        popup.addSeparator();
+        
+        // === Exit ===
         java.awt.MenuItem exitItem = new java.awt.MenuItem("Exit");
+        exitItem.setFont(menuFont);
         exitItem.addActionListener(e -> {
             stopHealthCheckTimer();
+            if (systemTray != null && trayIcon != null) {
+                systemTray.remove(trayIcon);
+            }
             Platform.exit();
             System.exit(0);
         });
         popup.add(exitItem);
         
-        // Create tray icon (use a simple colored image)
+        // Create tray icon
         Image image = createTrayImage();
-        trayIcon = new TrayIcon(image, "Servicegest - API Monitor", popup);
+        trayIcon = new TrayIcon(image, "Servicegest Companion - API Monitor", popup);
         trayIcon.setImageAutoSize(true);
         
-        // Add click listener to show window
+        // Add click listener to show window on left-click
         trayIcon.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                System.out.println("[DEBUG] Tray icon clicked - Button: " + e.getButton() + ", Click count: " + e.getClickCount());
-                if (e.getButton() == java.awt.event.MouseEvent.BUTTON1) {
-                    // Single left-click or double-click
+                if (e.getButton() == java.awt.event.MouseEvent.BUTTON1 && e.getClickCount() == 2) {
                     showWindow();
                 }
             }
         });
         
-        // Add action listener for primary action (double-click on some systems)
-        trayIcon.addActionListener(e -> {
-            System.out.println("[DEBUG] Tray icon action listener triggered");
-            showWindow();
-        });
+        // Add action listener for primary action (double-click)
+        trayIcon.addActionListener(e -> showWindow());
         
         try {
             systemTray.add(trayIcon);
         } catch (AWTException e) {
             System.out.println("Failed to add tray icon: " + e.getMessage());
         }
+    }
+    
+    /**
+     * Check for updates from system tray
+     */
+    private void checkForUpdatesFromTray() {
+        if (trayIcon != null) {
+            trayIcon.displayMessage("Update Check", "Checking for updates...", TrayIcon.MessageType.INFO);
+        }
+        
+        new Thread(() -> {
+            GitHubReleaseChecker.ReleaseInfo release = GitHubReleaseChecker.getLatestRelease();
+            
+            Platform.runLater(() -> {
+                if (release == null) {
+                    if (trayIcon != null) {
+                        trayIcon.displayMessage("Update Check Failed", 
+                            "Could not connect to GitHub.", TrayIcon.MessageType.WARNING);
+                    }
+                    return;
+                }
+                
+                String currentVersion = AutoUpdater.getCurrentVersion();
+                int comparison = GitHubReleaseChecker.compareVersions(release.version, currentVersion);
+                
+                if (comparison <= 0) {
+                    if (trayIcon != null) {
+                        trayIcon.displayMessage("No Updates", 
+                            "You're running the latest version (" + currentVersion + ")", 
+                            TrayIcon.MessageType.INFO);
+                    }
+                } else {
+                    if (trayIcon != null) {
+                        trayIcon.displayMessage("Update Available", 
+                            "New version " + release.version + " is available!", 
+                            TrayIcon.MessageType.INFO);
+                    }
+                    showWindow();
+                    showUpdateAvailableDialog(release);
+                }
+            });
+        }).start();
     }
     
     /**

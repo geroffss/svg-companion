@@ -1,8 +1,8 @@
 ; Inno Setup Script for Servicegest Companion
 ; Creates proper installer with working Start Menu shortcut
 
-#define MyAppName "ServicegestCompanion"
-#define MyAppVersion "1.1.0"
+#define MyAppName "Servicegest - Companion"
+#define MyAppVersion "1.2.3"
 #define MyAppPublisher "Servicegest"
 #define MyAppURL "https://servicegest.ro"
 

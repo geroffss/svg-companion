@@ -45,10 +45,10 @@ if %ERRORLEVEL% NEQ 0 (
 echo       Done!
 echo.
 
-REM Step 3: Run installer
-echo [3/3] Launching installer...
-echo.
-start "" "ServicegestCompanion-Setup-1.0.9.exe"
+@REM REM Step 3: Run installer
+@REM echo [3/3] Launching installer...
+@REM echo.
+@REM start "" "ServicegestCompanion-Setup-1.0.9.exe"
 
 echo ========================================
 echo  Build complete!
