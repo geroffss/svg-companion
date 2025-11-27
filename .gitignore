@@ -19,9 +19,6 @@ bin/
 
 # Compiled files
 *.class
-*.jar
-*.war
-*.ear
 
 # Logs and temp files
 *.log
@@ -42,20 +39,18 @@ pom.xml.versionsBackup
 pom.xml.next
 release.properties
 
-# Launcher/Installer outputs
-launcher/*.exe
-installer-output/
+# Installers (built artifacts - don't commit)
 *.exe
-!launch4j/**/*.exe
-
-# Launch4j (keep the tool, ignore generated files)
-launch4j.zip
+installer-output/
 
 # Package/Distribution
 *.msi
 *.dmg
 *.deb
 *.rpm
+*.jar
+*.war
+*.ear
 
 # Environment
 .env

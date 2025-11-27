@@ -1,240 +1,110 @@
-# Servicegest Companion App - API Health Monitor
+# Servicegest Companion App
 
-A lightweight Windows desktop application that monitors the health status of the Servicegest API (`api.servicegest.ro/health`) endpoint.
+A Windows desktop application that monitors the Servicegest API health status with system tray integration and automatic updates.
 
 ## Features
 
-✅ **API Health Monitoring** - Checks if `api.servicegest.ro/health` returns HTTP 200 status code  
-✅ **Real-time Status Display** - Shows current API status with visual indicators  
-✅ **Automatic Health Checks** - Periodic checks every 10 seconds (configurable)  
-✅ **Manual Check** - Perform immediate health check on demand  
-✅ **Timestamp Logging** - See when each health check was performed  
-✅ **Windows Installer** - Easy installation with Inno Setup  
+- **API Health Monitoring** - Monitors `api.servicegest.ro/health` endpoint
+- **System Tray Integration** - Runs minimized in system tray with status indicator
+- **Auto-Update** - Automatically checks for and installs updates from GitHub
+- **USB Device Detection** - Detects connected USB devices
+- **Windows Installer** - Easy installation with bundled Java runtime
 
-## Quick Start
+## Installation
 
-### Prerequisites
+### For Users
 
-- **Java 17 or later** - Download from [Adoptium](https://adoptium.net/)
-- **Maven 3.6+** (optional, for building from source)
-- **Inno Setup 6** (optional, for creating installer) - Download from [jrsoftware.org](https://jrsoftware.org/isdl.php)
+1. Download the latest installer from [GitHub Releases](https://github.com/geroffss/svg-companion/releases)
+2. Run `ServicegestCompanion-Setup-x.x.x.exe`
+3. Follow the installation prompts
+4. The app will start automatically after installation
 
-### Installation
+**Note:** The installer includes a bundled Java runtime - no need to install Java separately.
 
-1. Download the installer: `Servicegest-Companion-1.0.0.exe` from releases
-2. Run the installer and follow the prompts
-3. The application will be installed to `C:\Program Files\Servicegest\Companion`
-4. Launch from Desktop shortcut or Start Menu
+### Options during installation
 
-### Running the Application
-
-**Option 1: Direct JAR Execution**
-```powershell
-java -jar target\companion-app-all.jar
-```
-
-**Option 2: Using Windows Installer**
-- Install using `Servicegest-Companion-1.0.0.exe`
-- Launch from Desktop shortcut or Start Menu
+- **Desktop shortcut** - Creates a shortcut on your desktop
+- **Run at Windows startup** - Automatically starts the app when Windows boots
 
 ## Building from Source
 
 ### Prerequisites
-- Java 17 JDK
+
+- Java 17+ JDK (e.g., [Eclipse Adoptium](https://adoptium.net/))
 - Maven 3.6+
-- Inno Setup 6 (for installer creation)
+- [Inno Setup 6](https://jrsoftware.org/isdl.php) (for creating installer)
 
 ### Build Steps
 
-1. **Clone or download the repository**
-   ```powershell
-   cd companion2
-   ```
-
-2. **Build with Maven**
-   ```powershell
-   mvn clean package -DskipTests
-   ```
-
-   This creates:
-   - `target\companion-app-all.jar` - Standalone JAR file
-   - `target\lib\` - Dependencies folder
-
-3. **Create Windows Installer**
-   ```powershell
-   "C:\Program Files (x86)\Inno Setup 6\iscc.exe" setup.iss
-   ```
-
-   The installer will be created in `installer-output\Servicegest-Companion-1.0.0.exe`
-
-### Using the Build Script
-
-For convenience, use the build script:
 ```powershell
-.\build-all.bat
+# Clone the repository
+git clone https://github.com/geroffss/svg-companion.git
+cd svg-companion
+
+# Build and create installer
+.\build-and-install.bat
 ```
 
-This script automatically:
-1. Checks Maven and Java availability
-2. Cleans previous builds
-3. Builds the JAR with Maven
-4. Creates the Windows installer (if Inno Setup is installed)
+Or manually:
 
-## Application Usage
+```powershell
+# Build JAR
+mvn clean package -DskipTests
 
-### Main Screen
-
-The application displays:
-- **Status Indicator** - Shows if API is healthy (✓) or down (✗)
-- **API Endpoint** - Monitored URL: `https://api.servicegest.ro/health`
-- **Last Check Time** - Timestamp of the most recent health check
-- **Manual Check Button** - Immediately trigger a health check
-- **Interval Selector** - Set automatic check interval (5-60 seconds)
-- **Details Area** - View detailed check results
-
-### Status Meanings
-
-- ✓ **API is Healthy** (Green) - API responds with HTTP 200 status code
-- ✗ **API is Down** (Red) - API not responding or returns non-200 status
-- **Checking...** (Orange) - Health check in progress
-
-## Configuration
-
-### Health Check Endpoint
-
-The application checks: `https://api.servicegest.ro/health`
-
-To modify, edit `src/main/java/com/servicegest/companion/app/HealthChecker.java`:
-
-```java
-private static final String API_ENDPOINT = "https://api.servicegest.ro/health";
+# Create installer (requires Inno Setup)
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 ```
 
-### Check Timeout
+The installer will be created as `ServicegestCompanion-Setup-x.x.x.exe`
 
-Default timeout is 5 seconds. Modify in `HealthChecker.java`:
+## Development
 
-```java
-private static final int TIMEOUT_MS = 5000; // milliseconds
+```powershell
+# Run directly with Maven (for development)
+mvn clean compile javafx:run
 ```
 
-### Default Check Interval
+## Releasing a New Version
 
-Default interval is 10 seconds. Modify in `CompanionApp.java`:
+1. Update version in `version.json`
+2. Update version in `installer.iss` (`#define MyAppVersion`)
+3. Run `build-and-install.bat`
+4. Create a new GitHub release with tag `vX.X.X`
+5. Upload the installer `.exe` file to the release
 
-```java
-private static final long HEALTH_CHECK_INTERVAL = 10000; // milliseconds
-```
+Users with older versions will automatically be prompted to update.
 
 ## Project Structure
 
 ```
 companion2/
 ├── src/main/java/com/servicegest/companion/app/
-│   ├── CompanionApp.java        # Main application & UI
-│   └── HealthChecker.java       # API health check utility
+│   ├── CompanionApp.java      # Main application
+│   ├── HealthChecker.java     # API health checking
+│   ├── GitHubReleaseChecker.java  # Auto-update logic
+│   ├── UpdateWindow.java      # Update progress UI
+│   └── USBDeviceDetector.java # USB detection
 ├── src/main/resources/
-│   └── (application resources)
-├── target/
-│   ├── companion-app-all.jar    # Standalone executable JAR
-│   └── lib/                     # Dependencies
-├── pom.xml                      # Maven configuration
-├── setup.iss                    # Inno Setup installer script
-├── build-all.bat               # Build script
-└── README.md                   # This file
+│   └── icon.png               # Application icon
+├── build-and-install.bat      # Build script
+├── installer.iss              # Inno Setup installer config
+├── ServicegestCompanion.bat   # Launcher script (included in installer)
+├── version.json               # Version info for auto-updates
+├── pom.xml                    # Maven configuration
+└── README.md
 ```
 
-## Troubleshooting
+## Configuration
 
-### "Java not found"
-- Ensure Java 17+ is installed: https://adoptium.net/
-- Add Java to PATH or set `JAVA_HOME` environment variable
+The application monitors: `https://api.servicegest.ro/health`
 
-### "Maven not found"
-- Install Maven: https://maven.apache.org/
-- Add Maven bin folder to PATH
-
-### "Inno Setup not found"
-- Download and install from: https://jrsoftware.org/isdl.php
-- The JAR will still work without installer
-
-### Application won't start
-- Check Java version: `java -version`
-- Try running with console output:
-  ```powershell
-  java -jar target\companion-app-all.jar
-  ```
-
-### API always shows as down
-- Verify internet connectivity
-- Check if `api.servicegest.ro` is accessible
-- Verify firewall/proxy settings aren't blocking the connection
-
-## Development
-
-### Building for Development
-
-```powershell
-# Compile
-mvn compile
-
-# Run directly
-mvn javafx:run
-
-# Build executable
-mvn package
-```
-
-### Modifying the Application
-
-1. Edit source files in `src/main/java/com/servicegest/companion/app/`
-2. Rebuild: `mvn clean package`
-3. Test: `java -jar target\companion-app-all.jar`
-
-## Technical Details
-
-### Technologies Used
-- **JavaFX 21** - UI Framework
-- **Maven** - Build tool
-- **Java HttpURLConnection** - HTTP requests
-- **Inno Setup 6** - Windows installer creation
-
-### Key Components
-
-**CompanionApp.java**
-- Main application class
-- JavaFX UI management
-- Health check scheduling
-- Timer management
-
-**HealthChecker.java**
-- HTTP GET requests to API endpoint
-- Response code verification
-- Timeout handling
-- Error reporting
-
-### API Check Logic
-
-```
-1. Send GET request to https://api.servicegest.ro/health
-2. Wait up to 5 seconds for response
-3. Check if response status code is 200
-4. Return: true (healthy) or false (down)
-```
+Health checks run every 10 seconds by default.
 
 ## License
 
-MIT License - See LICENSE file for details
-
-## Support
-
-For issues or questions:
-1. Check the Troubleshooting section
-2. Review application logs in console
-3. Verify API endpoint accessibility
-4. Check Java and Maven versions
+MIT License
 
 ---
 
-**Version:** 1.0.0  
+**Current Version:** 1.2.3  
 **Last Updated:** November 2025
